@@ -1,0 +1,161 @@
+# Data-Analysis
+
+Steven Lowen  
+StevenLowen6@gmail.com  
+December 28, 2016
+
+### ETL process steps
+
+The ETL process would include the following:
+
+1. Merge with demographic information such as birthday (yielding
+age), gender, marital status, etc.
+
+In SQL that might look like:  
+SELECT sd.* dg.* FROM Sample_Data AS sd  
+LEFT JOIN Demographics AS dg  
+ON sd.ID=dg.ID  
+ORDER BY sd.NAME;
+
+2. Merge with other financial records from the same institution,
+such as bank accounts, mortgages, car loans, and investment
+accounts, using SSN.
+
+In R that might look like:  
+alldat <- merge(Sample_Data, Financial, by="ID", all.x=TRUE,
+all.y=FALSE)
+
+3. Merge CC accounts after new number is issued following theft,
+using an external list of paired (or grouped) account numbers.  The
+natural key could be either the first CC account number, or the
+SSN.  For the former, a table with the first account number, the
+new account number, and the effective date is required.
+
+4. Merge with other metadata.
+
+5. Select known compromised account numbers, using an external list
+of these.
+
+6. Select by Merchant, Institution Name, Acquiring Institution
+Name, and IsFraud.
+
+7. Select transactions with missing values in particular columns for further study.
+
+### Insights
+
+I see a number of potential issues worthy of further investigation:
+
+1. Nearly 30% of the dollar amount of all transactions are flagged
+as fraud.
+
+2. All transactions from BJS and Flowers.com are marked as
+fraudulent, while none are from Amazon.com, BP, Draftkings, or
+Walmart.
+
+3. All transactions with an Institution Name of "BB&T" have an
+Acquiring Institution Name of "USAA" and vice versa, and all 33 of
+these are marked as fraudulent.
+
+4. Fully 844/998 = 85% of the transactions are all from the same
+Card Number (and SSN).
+
+5. Card Number and SSN match *except* for Card Number
+"4003170000000000".  Can a valid Card Number end in ten zeros?
+
+6. There are 179 distinct NAMEs, but only 12 distinct SSNs.
+
+7. All 998 Transaction Methods are different, even the first 41,
+and those don't contain numbers.
+
+8. The Customer Address does not match NAME, Merchant, Institution
+Name, or Acquiring Institution Name.
+
+### Statistical Model
+
+A major concern is that nearly 30% of the dollar amount of all
+transactions are flagged as fraud.
+If the transactions are actually fraudulent, then the company will 
+be in serious financial trouble soon.
+Instead, perhaps this column represents the output of a model for
+predicting fraudulent transactions, and therefore needs to be
+improved.
+The task then would then be to improve this model.
+However, describing characteristics of data requires real data, and so in
+the following the data at hand will be taken as valid.
+
+A first step is to look at univariate data.
+Some columns have too many values to be useful, but insights 2 and 3
+above show two columns with values that can predict fraud.
+The data set at hand is quite small; a full data set (thousands or
+millions of rows) would be more informative.
+A first step would be to repeat the above analysis on the full
+data set, looking for columns with few values, and within those,
+looking for values that were predictive.  In R this might look
+like:  
+tmp <- sapply(dat, function(x) length(unique(x))) < 20 &
+names(dat) != "IsFraud"  
+apply(dat[tmp], 2, function(x) table(dat$IsFraud, x))  
+If the data had many more columns, then the above would have to
+be automated.
+Values that continued to be absolutely predictive from month to
+month could be used to classify transactions with high confidence.
+The problem reduces to predicting those transactions that do not
+fall into either the definitely fraudulent or definitely valid categories,
+as predicted by insights 2 or 3 above (assuming they remain valid in the
+full data set and over time).
+
+A next step would be to use simple models such as decision tree or
+logistic regression, because they are fast and favor rapid prototyping.
+
+After that I would add features.
+The data at hand has dates, which yield month and day of the month.
+However, day of the week might be more informative.
+The terminal location appears to be a zip code.
+This can be converted to a county using online tables, and from there to
+poverty levels and median household income using Census data;
+these additional data might be informative.
+Including information from other tables, such as age, credit history, and
+other financial variables would likely improve model performance.
+
+Next would be more sophisticated models (including random forest, GBM,
+MARS, and neural nets), settling on the one that provided best
+performance, least run time, and most interpretable results.
+Performance could be determined by area under the ROC curve, or maximum
+false-positive rate for a given false negative rate (or vice versa), or
+averaged monetary loss, or other metrics depending on the business need.
+Run time and interpretability are less important, but would be used to
+decide between models with similar performance.
+
+The data set at hand has about 27% of the transactions flagged as
+fraudulent, and so is fairly balanced.
+If the full set had a much lower proportion of fraudulent transactions
+(as expected for a viable business) then it would be necessary to
+duplicate the fraudulent transactions, sample the non-fraudulent
+transactions, or a combination of both, depending on run-time and data
+size considerations.
+
+It would be crucial to determine sample bias.
+Some merchants or financial institutions might be reluctant to report
+fraud.
+Others might be too busy at certain times of the year and so miss
+fraudulent transactions.
+In any case, ameliorating this issue requires knowledge of those
+parties or times, or some other external source of information.
+Reports from underrepresented sources could be duplicated as mentioned
+above, for both model training and testing.
+
+### Other Useful Data
+
+The following items would be useful to include in the monthly report:
+
+1. Age
+
+2. Gender
+
+3. Years a customer with this credit card company
+
+4. Number of items purchased
+
+These variables likely would improve model performance.
+The last one is not available from external records and so would have to
+be included in the monthly report.
